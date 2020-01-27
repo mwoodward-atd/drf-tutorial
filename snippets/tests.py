@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from rest_framework import status
-from rest_framework.test import APIClient
+from rest_framework.test import APIClient, CoreAPIClient
 
 from snippets.models import Snippet
 from snippets.serializers import SnippetSerializer
@@ -58,7 +58,7 @@ class SnippetSerializerTests(TestCase):
         self.assertEqual(len(Snippet.objects.all()), 0)
 
 
-class SnippetBasicViewsTests(TestCase):
+class SnippetViewsTests(TestCase):
     """Test the basic function-based views"""
 
     def setUp(self):
@@ -72,6 +72,26 @@ class SnippetBasicViewsTests(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.data), 2)
+
+    def test_create_snippet_success(self):
+        payload = {
+            'title': 'new snippet',
+            'code': 'print("OHAI!")'
+        }
+        res = self.client.post(reverse('snippets:list'), payload)
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        snippet = Snippet.objects.get(id=res.data['id'])
+        for key in payload.keys():
+            self.assertEqual(payload[key], getattr(snippet, key))
+
+    def test_create_snippet_fail(self):
+        payload = {
+            'title': 'bad snippet'
+        }
+        res = self.client.post(reverse('snippets:list'), payload)
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_retrieve_snippet_detail_success(self):
         snippet = create_default_snippet()
