@@ -64,7 +64,7 @@ class SnippetBasicViewsTests(TestCase):
     def setUp(self):
         self.client = APIClient()
 
-    def test_retrieve_snippets(self):
+    def test_retrieve_snippets_list(self):
         snippet1 = create_default_snippet(title='new snippet')
         snippet2 = create_default_snippet(title='another snippet')
 
@@ -72,3 +72,11 @@ class SnippetBasicViewsTests(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.json()), 2)
+
+    def test_retrieve_snippet_detail(self):
+        snippet = create_default_snippet()
+
+        res = self.client.get(reverse('snippets:detail', args=[snippet.id]))
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.json()['id'], snippet.id)
