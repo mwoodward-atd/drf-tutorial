@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
@@ -8,54 +9,15 @@ from snippets.models import Snippet
 from snippets.serializers import SnippetSerializer
 
 
-def create_default_snippet(title='Test Snippet',
-                           code='print("Hello, World!")\n',
-                           linenos=True,
-                           language='python',
-                           style='friendly'):
-    return Snippet.objects.create(
-        title=title,
-        code=code,
-        linenos=linenos,
-        language=language,
-        style=style
+SNIPPETS_LIST_URL = reverse('snippets:snippets-list')
+USERS_LIST_URL = reverse('snippets:users-list')
+
+
+def create_sample_user(username='test', password='test1234'):
+    return User.objects.create_user(
+        username=username,
+        password=password
     )
-
-
-class SnippetSerializerTests(TestCase):
-    """Test snippet serializer"""
-
-    def test_create_snippet_success(self):
-        data = {
-            'title': 'New Snippet',
-            'code': 'print("Hello, World!")\n',
-            'linenos': True,
-            'language': 'python',
-            'style': 'friendly',
-        }
-        serializer = SnippetSerializer(data=data)
-        snippet_valid = serializer.is_valid()
-
-        if snippet_valid:
-            serializer.save()
-
-        self.assertTrue(snippet_valid)
-        self.assertEqual(len(Snippet.objects.all()), 1)
-        self.assertEqual(serializer.validated_data.get('title'), 'New Snippet')
-
-    def test_create_snippet_fail(self):
-        data = {
-            'title': 'Bad Snippet',
-            'language': 'ColdFusion',
-        }
-        serializer = SnippetSerializer(data=data)
-        snippet_valid = serializer.is_valid()
-
-        if snippet_valid:
-            serializer.save()
-
-        self.assertFalse(snippet_valid)
-        self.assertEqual(len(Snippet.objects.all()), 0)
 
 
 class SnippetViewsTests(TestCase):
@@ -63,12 +25,25 @@ class SnippetViewsTests(TestCase):
 
     def setUp(self):
         self.client = APIClient()
+        self.user1 = create_sample_user(username='user1', password='password1')
+        self.user2 = create_sample_user(username='user2', password='password2')
 
     def test_retrieve_snippets_list(self):
-        snippet1 = create_default_snippet(title='new snippet')
-        snippet2 = create_default_snippet(title='another snippet')
+        payload1 = {
+            'title': 'Snippet 1',
+            'code': 'print("Hello, World!")'
+        }
+        payload2 = {
+            'title': 'Snippet 2',
+            'code': 'foo = bar'
+        }
 
-        res = self.client.get(reverse('snippets:list'))
+        self.client.force_authenticate(self.user1)
+        self.client.post(SNIPPETS_LIST_URL, payload1)
+        self.client.force_authenticate(self.user2)
+        self.client.post(SNIPPETS_LIST_URL, payload2)
+
+        res = self.client.get(SNIPPETS_LIST_URL)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.data), 2)
@@ -78,7 +53,8 @@ class SnippetViewsTests(TestCase):
             'title': 'new snippet',
             'code': 'print("OHAI!")'
         }
-        res = self.client.post(reverse('snippets:list'), payload)
+        self.client.force_authenticate(self.user1)
+        res = self.client.post(SNIPPETS_LIST_URL, payload)
 
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         snippet = Snippet.objects.get(id=res.data['id'])
@@ -89,30 +65,66 @@ class SnippetViewsTests(TestCase):
         payload = {
             'title': 'bad snippet'
         }
-        res = self.client.post(reverse('snippets:list'), payload)
+        res = self.client.post(SNIPPETS_LIST_URL, payload)
 
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_retrieve_snippet_detail_success(self):
-        snippet = create_default_snippet()
+        snippet = Snippet.objects.create(
+            owner=self.user1,
+            title='Test',
+            code='print("test!")'
+        )
 
-        res = self.client.get(reverse('snippets:detail', args=[snippet.id]))
+        res = self.client.get(reverse('snippets:snippets-detail', args=[snippet.id]))
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data['id'], snippet.id)
 
     def test_retrieve_snippet_detail_fail(self):
-        snippet = create_default_snippet()
+        snippet = Snippet.objects.create(
+            owner=self.user1,
+            title='Test',
+            code='print("test!")'
+        )
 
-        res = self.client.get(reverse('snippets:detail', args=[snippet.id + 1]))
+        res = self.client.get(reverse('snippets:snippets-detail', args=[snippet.id + 1]))
 
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_delete_snippet(self):
-        snippet = create_default_snippet()
+        snippet = Snippet.objects.create(
+            owner=self.user1,
+            title='Test',
+            code='print("test!")'
+        )
 
-        res = self.client.delete(reverse('snippets:detail', args=[snippet.id]))
-        res2 = self.client.get(reverse('snippets:list'))
+        res = self.client.delete(reverse('snippets:snippets-detail', args=[snippet.id]))
+        res2 = self.client.get(SNIPPETS_LIST_URL)
 
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(len(res2.data), 0)
+
+
+class UserTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user1 = create_sample_user('user1')
+        self.user2 = create_sample_user('user2')
+
+    def test_retrieve_user_list(self):
+        res = self.client.get(USERS_LIST_URL)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(User.objects.all().count(), 2)
+
+    def test_retrieve_user_detail_success(self):
+        res = self.client.get(reverse('snippets:users-detail', args=[self.user1.id]))
+        
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['id'], self.user1.id)
+
+    def test_retrieve_user_detail_fail(self):
+        res = self.client.get(reverse('snippets:users-detail', args=[99]))
+
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
