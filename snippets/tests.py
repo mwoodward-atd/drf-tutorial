@@ -71,7 +71,7 @@ class SnippetBasicViewsTests(TestCase):
         res = self.client.get(reverse('snippets:list'))
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(res.json()), 2)
+        self.assertEqual(len(res.data), 2)
 
     def test_retrieve_snippet_detail(self):
         snippet = create_default_snippet()
@@ -79,4 +79,4 @@ class SnippetBasicViewsTests(TestCase):
         res = self.client.get(reverse('snippets:detail', args=[snippet.id]))
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(res.json()['id'], snippet.id)
+        self.assertEqual(res.data['id'], snippet.id)
