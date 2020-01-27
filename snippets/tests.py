@@ -73,10 +73,26 @@ class SnippetBasicViewsTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.data), 2)
 
-    def test_retrieve_snippet_detail(self):
+    def test_retrieve_snippet_detail_success(self):
         snippet = create_default_snippet()
 
         res = self.client.get(reverse('snippets:detail', args=[snippet.id]))
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data['id'], snippet.id)
+
+    def test_retrieve_snippet_detail_fail(self):
+        snippet = create_default_snippet()
+
+        res = self.client.get(reverse('snippets:detail', args=[snippet.id + 1]))
+
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_delete_snippet(self):
+        snippet = create_default_snippet()
+
+        res = self.client.delete(reverse('snippets:detail', args=[snippet.id]))
+        res2 = self.client.get(reverse('snippets:list'))
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(len(res2.data), 0)
