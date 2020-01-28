@@ -9,8 +9,8 @@ from snippets.models import Snippet
 from snippets.serializers import SnippetSerializer
 
 
-SNIPPETS_LIST_URL = reverse('snippets:snippets-list')
-USERS_LIST_URL = reverse('snippets:users-list')
+SNIPPETS_LIST_URL = reverse('snippet-list')
+USERS_LIST_URL = reverse('user-list')
 
 
 def create_sample_user(username='test', password='test1234'):
@@ -21,7 +21,11 @@ def create_sample_user(username='test', password='test1234'):
 
 
 def snippet_detail_url(id):
-    return reverse('snippets:snippets-detail', args=[id])
+    return reverse('snippet-detail', args=[id])
+
+
+def user_detail_url(id):
+    return reverse('user-detail', args=[id])
 
 
 class SnippetViewsTests(TestCase):
@@ -171,12 +175,12 @@ class UserTests(TestCase):
         self.assertEqual(User.objects.all().count(), 2)
 
     def test_retrieve_user_detail_success(self):
-        res = self.client.get(reverse('snippets:users-detail', args=[self.user1.id]))
+        res = self.client.get(user_detail_url(self.user1.id))
         
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data['id'], self.user1.id)
 
     def test_retrieve_user_detail_fail(self):
-        res = self.client.get(reverse('snippets:users-detail', args=[99]))
+        res = self.client.get(user_detail_url(99))
 
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
