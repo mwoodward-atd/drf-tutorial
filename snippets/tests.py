@@ -54,7 +54,7 @@ class SnippetViewsTests(TestCase):
         res = self.client.get(SNIPPETS_LIST_URL)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(res.data), 2)
+        self.assertEqual(Snippet.objects.all().count(), 2)
 
     def test_create_snippet_success(self):
         payload = {
@@ -109,10 +109,9 @@ class SnippetViewsTests(TestCase):
         )
         self.client.force_authenticate(self.user1)
         res = self.client.delete(snippet_detail_url(snippet.id))
-        res2 = self.client.get(SNIPPETS_LIST_URL)
 
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertEqual(len(res2.data), 0)
+        self.assertEqual(Snippet.objects.all().count(), 0)
 
     def test_edit_snippet_success(self):
         snippet = Snippet.objects.create(
