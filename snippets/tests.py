@@ -128,7 +128,7 @@ class SnippetViewsTests(TestCase):
         self.assertEqual(snippet.title, payload['title'])
         self.assertEqual(snippet.code, payload['code'])
 
-    def test_edit_snippet_fail(self):
+    def test_edit_snippet_wrong_user(self):
         """Test that wrong user can't edit snippet"""
         snippet = Snippet.objects.create(
             owner=self.user1,
@@ -146,6 +146,16 @@ class SnippetViewsTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
         self.assertNotEqual(snippet.title, payload['title'])
         self.assertNotEqual(snippet.code, payload['code'])
+
+    def test_create_snippet_unauthenticated(self):
+        """Test that a snippet can't be created if no authenticated user"""
+        payload={
+            'title': 'New Snippet',
+            'code': "This shouldn't work!"
+        }
+        res = self.client.post(SNIPPETS_LIST_URL, payload)
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(Snippet.objects.all().count(), 0)
 
 
 class UserTests(TestCase):
