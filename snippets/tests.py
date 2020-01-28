@@ -20,6 +20,10 @@ def create_sample_user(username='test', password='test1234'):
     )
 
 
+def snippet_detail_url(id):
+    return reverse('snippets:snippets-detail', args=[id])
+
+
 class SnippetViewsTests(TestCase):
     """Test the basic function-based views"""
 
@@ -65,6 +69,7 @@ class SnippetViewsTests(TestCase):
         payload = {
             'title': 'bad snippet'
         }
+        self.client.force_authenticate(self.user2)
         res = self.client.post(SNIPPETS_LIST_URL, payload)
 
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
@@ -76,7 +81,7 @@ class SnippetViewsTests(TestCase):
             code='print("test!")'
         )
 
-        res = self.client.get(reverse('snippets:snippets-detail', args=[snippet.id]))
+        res = self.client.get(snippet_detail_url(snippet.id))
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data['id'], snippet.id)
@@ -88,7 +93,7 @@ class SnippetViewsTests(TestCase):
             code='print("test!")'
         )
 
-        res = self.client.get(reverse('snippets:snippets-detail', args=[snippet.id + 1]))
+        res = self.client.get(snippet_detail_url(snippet.id + 1))
 
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
 
@@ -98,12 +103,49 @@ class SnippetViewsTests(TestCase):
             title='Test',
             code='print("test!")'
         )
-
-        res = self.client.delete(reverse('snippets:snippets-detail', args=[snippet.id]))
+        self.client.force_authenticate(self.user1)
+        res = self.client.delete(snippet_detail_url(snippet.id))
         res2 = self.client.get(SNIPPETS_LIST_URL)
 
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(len(res2.data), 0)
+
+    def test_edit_snippet_success(self):
+        snippet = Snippet.objects.create(
+            owner=self.user1,
+            title='Test',
+            code='print("test!")'
+        )
+        payload={
+            'title': 'Updated Title',
+            'code': 'Updated Code'
+        }
+        self.client.force_authenticate(self.user1)
+        res = self.client.put(snippet_detail_url(snippet.id), payload)
+
+        snippet.refresh_from_db()
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(snippet.title, payload['title'])
+        self.assertEqual(snippet.code, payload['code'])
+
+    def test_edit_snippet_fail(self):
+        """Test that wrong user can't edit snippet"""
+        snippet = Snippet.objects.create(
+            owner=self.user1,
+            title='Test',
+            code='Test'
+        )
+        payload={
+            'title': 'Updated Title',
+            'code': 'Updated Code'
+        }
+        self.client.force_authenticate(self.user2)
+        res = self.client.put(snippet_detail_url(snippet.id), payload)
+
+        snippet.refresh_from_db()
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertNotEqual(snippet.title, payload['title'])
+        self.assertNotEqual(snippet.code, payload['code'])
 
 
 class UserTests(TestCase):
